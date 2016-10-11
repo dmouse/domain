@@ -1,16 +1,9 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_access\DomainAccessManager.
- */
-
 namespace Drupal\domain_access;
 
-use Drupal\domain\DomainInterface;
 use Drupal\domain\DomainLoaderInterface;
 use Drupal\domain\DomainNegotiatorInterface;
-use Drupal\domain_access\DomainAccessManagerInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
@@ -81,7 +74,7 @@ class DomainAccessManager implements DomainAccessManagerInterface {
    */
   public function checkEntityAccess(EntityInterface $entity, AccountInterface $account) {
     $entity_domains = $this->getAccessValues($entity);
-    $user = \Drupal::entityManager()->getStorage('user')->load($account->id());
+    $user = \Drupal::entityTypeManager()->getStorage('user')->load($account->id());
     if (!empty($this->getAllValue($user)) && !empty($entity_domains)) {
       return TRUE;
     }
@@ -94,11 +87,20 @@ class DomainAccessManager implements DomainAccessManagerInterface {
    */
   public static function getDefaultValue(FieldableEntityInterface $entity, FieldDefinitionInterface $definition) {
     $item = array();
-    switch ($entity->getEntityType()) {
+    switch ($entity->getEntityType()->id()) {
       case 'user':
       case 'node':
-        if ($active = $this->negotiator->getActiveDomain()) {
-          $item[0]['target_uuid'] = $active->uuid();
+        if ($entity->isNew()) {
+          /** @var \Drupal\domain\DomainInterface $active */
+          if ($active = \Drupal::service('domain.negotiator')->getActiveDomain()) {
+            $item[0]['target_uuid'] = $active->uuid();
+          }
+        }
+        // This code does not fire, but it should.
+        else {
+          foreach ($this->getAccessValues($entity) as $id) {
+            $item[] = $id;
+          }
         }
         break;
       default:
@@ -112,11 +114,17 @@ class DomainAccessManager implements DomainAccessManagerInterface {
    */
   public static function getDefaultAllValue(FieldableEntityInterface $entity, FieldDefinitionInterface $definition) {
     // @TODO: This may become configurable.
-    $item = FALSE;
+    $item = 0;
     switch ($entity->getEntityType()) {
       case 'user':
       case 'node':
-        $item = FALSE;
+        if ($entity->isNew()) {
+          $item = 0;
+        }
+        // This code does not fire, but it should.
+        else {
+          $item = $this->getAllValue($entity);
+        }
         break;
       default:
         break;

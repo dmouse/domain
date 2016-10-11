@@ -1,17 +1,13 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain\DomainLoader.
- */
-
 namespace Drupal\domain;
 
-use Drupal\domain\DomainInterface;
-use Drupal\domain\DomainLoaderInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 
+/**
+ * Loads Domain records.
+ */
 class DomainLoader implements DomainLoaderInterface {
 
   /**
@@ -22,17 +18,27 @@ class DomainLoader implements DomainLoaderInterface {
   protected $typedConfig;
 
   /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
    * Constructs a DomainLoader object.
    *
    * Trying to inject the storage manager throws an exception.
    *
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
    *   The typed config handler.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
    *
    * @see getStorage()
    */
-  public function __construct(TypedConfigManagerInterface $typed_config) {
+  public function __construct(TypedConfigManagerInterface $typed_config, ConfigFactoryInterface $config_factory) {
     $this->typedConfig = $typed_config;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -100,6 +106,7 @@ class DomainLoader implements DomainLoaderInterface {
    * {@inheritdoc}
    */
   public function loadByHostname($hostname) {
+    $hostname = $this->prepareHostname($hostname);
     $result = $this->getStorage()->loadByProperties(array('hostname' => $hostname));
     if (empty($result)) {
       return NULL;
@@ -121,7 +128,7 @@ class DomainLoader implements DomainLoaderInterface {
   /**
    * {@inheritdoc}
    */
-  public function sort($a, $b) {
+  public function sort(DomainInterface $a, DomainInterface $b) {
     return $a->getWeight() > $b->getWeight();
   }
 
@@ -135,6 +142,22 @@ class DomainLoader implements DomainLoaderInterface {
   protected function getStorage() {
     $storage = \Drupal::entityTypeManager()->getStorage('domain');
     return $storage;
+  }
+
+  /**
+   * Removes www. from a hostname, if set.
+   *
+   * @param string $hostname
+   *   A hostname.
+   * @return string
+   */
+  public function prepareHostname($hostname) {
+    // Strip www. off the front?
+    $www = $this->configFactory->get('domain.settings')->get('www_prefix');
+    if (!empty($www) && substr($hostname, 0, 4) == 'www.') {
+      $hostname = substr($hostname, 4);
+    }
+    return $hostname;
   }
 
 }

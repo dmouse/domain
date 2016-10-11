@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_alias\Tests\DomainAliasTestBase.
- */
-
 namespace Drupal\domain_alias\Tests;
 
 use Drupal\domain\DomainInterface;
@@ -23,26 +18,28 @@ abstract class DomainAliasTestBase extends DomainTestBase {
   public static $modules = array('domain', 'domain_alias');
 
   /**
-   * @inheritdoc
+   * {@inheritdoc}
    */
-  public function setUp() {
+  protected function setUp() {
     parent::setUp();
   }
 
   /**
    * Creates an alias for testing.
    *
-   * @param Drupal\domain\Entity\Domain $domain
+   * @param \Drupal\domain\DomainInterface $domain
    *   A domain entity.
    * @param string $pattern
    *   An optional alias pattern.
    * @param int $redirect
    *   An optional redirect (301 or 302).
+   * @param boolean $save
+   *   Whether to save the alias or return for validation.
    *
-   * @return Drupal\domain_alias\Entity\DomainAlias
+   * @return \Drupal\domain_alias\Entity\DomainAlias
    *   A domain alias entity.
    */
-  public function domainAliasCreateTestAlias(DomainInterface $domain, $pattern = NULL, $redirect = 0) {
+  public function domainAliasCreateTestAlias(DomainInterface $domain, $pattern = NULL, $redirect = 0, $save = TRUE) {
     if (empty($pattern)) {
       $pattern = '*.' . $domain->getHostname();
     }
@@ -52,9 +49,13 @@ abstract class DomainAliasTestBase extends DomainTestBase {
       'redirect' => $redirect,
     );
     // Replicate the logic for creating machine_name patterns.
-    $values['id'] = str_replace(array('*', '.'), '_', $values['pattern']);
-    $alias = \Drupal::entityManager()->getStorage('domain_alias')->create($values);
-    $alias->save();
+    // @see ConfigBase::validate()
+    $machine_name = strtolower(preg_replace('/[^a-z0-9_]/', '_', $values['pattern']));
+    $values['id'] = str_replace(array('*', '.', ':'), '_', $machine_name);
+    $alias = \Drupal::entityTypeManager()->getStorage('domain_alias')->create($values);
+    if ($save) {
+      $alias->save();
+    }
 
     return $alias;
   }

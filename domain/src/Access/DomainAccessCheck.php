@@ -1,16 +1,11 @@
 <?php
 
-/**
- * @file
- * Defines \Drupal\domain\Access\DomainAccessCheck.
- */
-
 namespace Drupal\domain\Access;
 
 use Drupal\Core\Access\AccessCheckInterface;
 use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\domain\DomainInterface;
 use Drupal\domain\DomainNegotiatorInterface;
 use Symfony\Component\Routing\Route;
 
@@ -20,18 +15,30 @@ use Symfony\Component\Routing\Route;
 class DomainAccessCheck implements AccessCheckInterface {
 
   /**
+   * The Domain negotiator.
+   *
    * @var \Drupal\domain\DomainNegotiatorInterface
    */
   protected $domainNegotiator;
+
+  /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
 
   /**
    * Constructs the object.
    *
    * @param DomainNegotiatorInterface $negotiator
    *   The domain negotiation service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
    */
-  public function __construct(DomainNegotiatorInterface $negotiator) {
+  public function __construct(DomainNegotiatorInterface $negotiator, ConfigFactoryInterface $config_factory) {
     $this->domainNegotiator = $negotiator;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -45,9 +52,11 @@ class DomainAccessCheck implements AccessCheckInterface {
    * {@inheritdoc}
    */
   public function checkPath($path) {
-    $list = explode('/', $path);
-    // @TODO: This list may need to be configurable.
-    if (current($list) == 'user') {
+    $allowed_paths = $this->configFactory->get('domain.settings')->get('login_paths', '/user/login\r\n/user/password');
+    if (!empty($allowed_paths)) {
+      $paths = preg_split("(\r\n?|\n)", $allowed_paths);
+    }
+    if (!empty($paths) && in_array($path, $paths)) {
       return FALSE;
     }
     return TRUE;
@@ -57,6 +66,7 @@ class DomainAccessCheck implements AccessCheckInterface {
    * {@inheritdoc}
    */
   public function access(AccountInterface $account) {
+    /** @var \Drupal\domain\DomainInterface $domain */
     $domain = $this->domainNegotiator->getActiveDomain();
     // Is the domain allowed?
     // No domain, let it pass.

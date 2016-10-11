@@ -1,14 +1,7 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain\Tests\DomainCreateTest.
- */
-
 namespace Drupal\domain\Tests;
-
-use Drupal\domain\DomainInterface;
-use Drupal\domain\Tests\DomainTestBase;
+use Drupal\Component\Render\FormattableMarkup;
 
 /**
  * Tests the domain record creation API.
@@ -20,15 +13,15 @@ class DomainCreateTest extends DomainTestBase {
   /**
    * Tests initial domain creation.
    */
-  function testDomainCreate() {
+  public function testDomainCreate() {
     // No domains should exist.
     $this->domainTableIsEmpty();
 
     // Create a new domain programmatically.
     $domain = \Drupal::service('domain.creator')->createDomain();
-    foreach (array('id', 'name', 'hostname', 'domain_id', 'scheme', 'status', 'weight' , 'is_default') as $key) {
+    foreach (array('id', 'name', 'hostname', 'scheme', 'status', 'weight' , 'is_default') as $key) {
       $property = $domain->get($key);
-      $this->assertTrue(isset($property), format_string('New $domain->@key property is set to default value: %value.', array('@key' => $key, '%value' => $property)));
+      $this->assertTrue(isset($property), new FormattableMarkup('New $domain->@key property is set to default value: %value.', array('@key' => $key, '%value' => $property)));
     }
     $domain->save();
 
@@ -41,7 +34,7 @@ class DomainCreateTest extends DomainTestBase {
     $this->assertTrue($new_domain->id() == $domain->id(), 'Domain loaded properly.');
 
     // Has domain id been set?
-    $this->assertTrue($new_domain->getDomainId() == 1, 'Domain id set properly.');
+    $this->assertTrue($new_domain->getDomainId(), 'Domain id set properly.');
 
     // Has a UUID been set?
     $this->assertTrue($new_domain->uuid(), 'Entity UUID set properly.');

@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\domain_config\DomainConfigOverrider.
- */
-
 namespace Drupal\domain_config;
 
 use Drupal\domain\DomainInterface;
@@ -12,7 +7,6 @@ use Drupal\domain\DomainNegotiatorInterface;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryOverrideInterface;
 use Drupal\Core\Config\StorageInterface;
-use Drupal\Core\Language\LanguageManagerInterface;
 
 /**
  * Domain-specific config overrides.
@@ -38,11 +32,15 @@ class DomainConfigOverrider implements ConfigFactoryOverrideInterface {
 
   /**
    * The domain context of the request.
+   *
+   * @var \Drupal\domain\DomainInterface $domain
    */
   protected $domain;
 
   /**
    * The language context of the request.
+   *
+   * @var \Drupal\Core\Language\LanguageInterface $language
    */
   protected $language;
 
@@ -81,7 +79,9 @@ class DomainConfigOverrider implements ConfigFactoryOverrideInterface {
     if (isset($list[0]) && isset($list[1]) && $list[0] == 'domain' && $list[1] == 'record') {
       return $overrides;
     }
-    $this->initiateContext();
+    if (empty($this->domain)) {
+      $this->initiateContext();
+    }
     if (!empty($this->domain)) {
       foreach ($names as $name) {
         $config_name = $this->getDomainConfigName($name, $this->domain);
@@ -103,7 +103,7 @@ class DomainConfigOverrider implements ConfigFactoryOverrideInterface {
    * Get configuration name for this hostname.
    *
    * It will be the same name with a prefix depending on domain and language:
-   * domain.config.DOMAIN_ID.LANGCODE
+   * @code domain.config.DOMAIN_ID.LANGCODE @endcode
    *
    * @param string $name
    *   The name of the config object.
@@ -155,13 +155,20 @@ class DomainConfigOverrider implements ConfigFactoryOverrideInterface {
    * with the locale module.
    */
   protected function initiateContext() {
-    // @TODO: Is this cacheable?
+    // Prevent infinite lookups by caching the request. Since the _construct()
+    // is called for each lookup, this is more efficient.
+    static $context;
+    if ($context) {
+      return;
+    }
+    $context++;
     // Get the language context. Note that injecting the language manager
     // into the service created a circular dependency error, so we load from
     // the core service manager.
     $this->languageManager = \Drupal::languageManager();
     $this->language = $this->languageManager->getCurrentLanguage();
     // Get the domain context.
-    $this->domain = $this->domainNegotiator->getActiveDomain();
+    $this->domain = $this->domainNegotiator->getActiveDomain(TRUE);
   }
+
 }

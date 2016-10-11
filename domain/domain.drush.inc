@@ -5,9 +5,8 @@
  * Drush commands for Domain Access.
  */
 
+use Drupal\Component\Utility\Html;
 use Drupal\domain\DomainInterface;
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\Component\Utility\SafeMarkup;
 
 /**
  * Implements hook_drush_command().
@@ -190,7 +189,7 @@ function drush_domain_list() {
   foreach ($domains as $domain) {
     $row = array();
     foreach ($header as $key => $name) {
-      $row[] = SafeMarkup::checkPlain($domain->get($key));
+      $row[] = Html::escape($domain->get($key));
     }
     $rows[] = $row;
   }
@@ -561,7 +560,7 @@ function drush_domain_machine_name($argument, $machine_name) {
   $machine_name = \Drupal::service('domain.creator')->createMachineName($machine_name);
   // Resolve the domain.
   if ($domain = drush_domain_get_from_argument($argument)) {
-    $results = \Drupal::entityManager()
+    $results = \Drupal::entityTypeManager()
       ->getStorage('domain')
       ->loadByProperties(array('machine_name' => $machine_name));
     foreach ($results as $result) {

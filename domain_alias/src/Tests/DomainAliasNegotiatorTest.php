@@ -1,14 +1,8 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_alias\Tests\DomainAliasNegotiatorTest
- */
-
 namespace Drupal\domain_alias\Tests;
 
-use Drupal\domain\DomainInterface;
-use Drupal\domain_alias\Tests\DomainAliasTestBase;
+use Drupal\user\RoleInterface;
 
 /**
  * Tests domain alias request negotiation.
@@ -27,7 +21,7 @@ class DomainAliasNegotiatorTest extends DomainAliasTestBase {
   /**
    * Tests the handling of aliased requests.
    */
-  function testDomainAliasNegotiator() {
+  public function testDomainAliasNegotiator() {
     // No domains should exist.
     $this->domainTableIsEmpty();
 
@@ -39,23 +33,56 @@ class DomainAliasNegotiatorTest extends DomainAliasTestBase {
     $this->drupalPlaceBlock('domain_server_block');
 
     // To get around block access, let the anon user view the block.
-    user_role_grant_permissions(DRUPAL_ANONYMOUS_RID, array('administer domains'));
+    user_role_grant_permissions(RoleInterface::ANONYMOUS_ID, array('administer domains'));
 
-    // Test the response of the default home page.
+    // Set known prefixes that work with our tests. This will give us domains
+    // 'example.com' and 'one.example.com' aliased to 'two.example.com' and
+    // 'three.example.com'.
+    $prefixes = ['two', 'three'];
+    // Test the response of each home page.
+    /** @var \Drupal\domain\Entity\Domain $domain */
     foreach (\Drupal::service('domain.loader')->loadMultiple() as $domain) {
-      if (!isset($alias_domain)) {
-        $alias_domain = $domain;
-      }
+      $alias_domains[] = $domain;
       $this->drupalGet($domain->getPath());
       $this->assertRaw($domain->label(), 'Loaded the proper domain.');
       $this->assertRaw('Exact match', 'Direct domain match.');
     }
 
-    // Now, test an alias.
-    $this->domainAliasCreateTestAlias($alias_domain);
-    $pattern = '*.' . $alias_domain->getHostname();
+    // Now, test an alias for each domain.
+    foreach ($alias_domains as $index => $alias_domain) {
+      $prefix = $prefixes[$index];
+      // Set a known pattern.
+      $pattern = $prefix . '.' . $this->base_hostname;
+      $this->domainAliasCreateTestAlias($alias_domain, $pattern);
+      $alias = \Drupal::service('domain_alias.loader')->loadByPattern($pattern);
+      // Set the URL for the request. Note that this is not saved, it is just
+      // URL generation.
+      $alias_domain->set('hostname', $pattern);
+      $alias_domain->setPath();
+      $url = $alias_domain->getPath();
+      $this->drupalGet($url);
+      $this->assertRaw($alias_domain->label(), 'Loaded the proper domain.');
+      $this->assertRaw('ALIAS:', 'No direct domain match.');
+      $this->assertRaw($alias->getPattern(), 'Alias match.');
+
+      // Test redirections.
+      // @TODO: This could be much more elegant: the redirects break assertRaw()
+      $alias->set('redirect', 301);
+      $alias->save();
+      $this->drupalGet($url);
+      $alias->set('redirect', 302);
+      $alias->save();
+      $this->drupalGet($url);
+    }
+    // Test a wildcard alias.
+    // @TODO: Refactor this test to merge with the above.
+    $alias_domain = \Drupal::service('domain.loader')->loadDefaultDomain();
+    $pattern = '*.' . $this->base_hostname;
+    $this->domainAliasCreateTestAlias($alias_domain, $pattern);
     $alias = \Drupal::service('domain_alias.loader')->loadByPattern($pattern);
-    $alias_domain->set('hostname', 'two.' . $alias_domain->getHostname());
+    // Set the URL for the request. Note that this is not saved, it is just
+    // URL generation.
+    $alias_domain->set('hostname', 'four.' . $this->base_hostname);
     $alias_domain->setPath();
     $url = $alias_domain->getPath();
     $this->drupalGet($url);
@@ -71,9 +98,9 @@ class DomainAliasNegotiatorTest extends DomainAliasTestBase {
     $alias->set('redirect', 302);
     $alias->save();
     $this->drupalGet($url);
-    // Revoke the permission change
-    user_role_revoke_permissions(DRUPAL_ANONYMOUS_RID, array('administer domains'));
 
+    // Revoke the permission change.
+    user_role_revoke_permissions(RoleInterface::ANONYMOUS_ID, array('administer domains'));
   }
 
 }

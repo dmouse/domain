@@ -1,13 +1,7 @@
 <?php
 
-/**
- * @file
- * Contains Drupal\domain_source\HttpKernel\DomainSourcePathProcessor.
- */
-
 namespace Drupal\domain_source\HttpKernel;
 
-use Drupal\domain\DomainInterface;
 use Drupal\domain\DomainLoaderInterface;
 use Drupal\domain\DomainNegotiatorInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -21,20 +15,18 @@ use Symfony\Component\HttpFoundation\Request;
 class DomainSourcePathProcessor implements OutboundPathProcessorInterface {
 
   /**
-   * @var \Drupal\domain\DomainLoaderInterface
+   * The Domain loader.
+   *
+   * @var \Drupal\domain\DomainLoaderInterface $loader
    */
   protected $loader;
 
   /**
+   * The Domain negotiator.
+   *
    * @var \Drupal\domain\DomainNegotiatorInterface
    */
   protected $negotiator;
-
-  /**
-   * Constructs a DomainCreator object.
-   *
-   * @param \Drupal\domain\DomainLoaderInterface $loader
-   *   The domain loader.
 
   /**
    * The module handler.
@@ -60,12 +52,14 @@ class DomainSourcePathProcessor implements OutboundPathProcessorInterface {
   }
 
   /**
-   * @inheritdoc
+   * {@inheritdoc}
    */
   public function processOutbound($path, &$options = array(), Request $request = NULL, BubbleableMetadata $bubbleable_metadata = NULL) {
     static $active_domain;
+
     if (!isset($active_domain)) {
-      // Ensure that the loader has run. In some tests, the kernel event has not.
+      // Ensure that the loader has run.
+      // In some tests, the kernel event has not.
       $active = \Drupal::service('domain.negotiator')->getActiveDomain();
       if (empty($active)) {
         $active = \Drupal::service('domain.negotiator')->getActiveDomain(TRUE);
@@ -80,9 +74,10 @@ class DomainSourcePathProcessor implements OutboundPathProcessorInterface {
     $source = NULL;
     $options['active_domain'] = $active_domain;
 
+    $entity = $this->getEntity($path, $options, 'node');
+
     // One hook for nodes.
-    if (isset($options['entity_type']) && $options['entity_type'] == 'node') {
-      $entity = $options['entity'];
+    if (!empty($entity)) {
       if ($target_id = domain_source_get($entity)) {
         $source = $this->loader->load($target_id);
       }
@@ -101,5 +96,51 @@ class DomainSourcePathProcessor implements OutboundPathProcessorInterface {
     return $path;
   }
 
-}
+  /**
+   * Derive entity data from a given path.
+   *
+   * @param $path
+   *   The drupal path, e.g. /node/2.
+   * @param $options array
+   *   The options passed to the path processor.
+   * @param $type
+   *   The entity type to check.
+   *
+   * @return $entity|NULL
+   */
+  public static function getEntity($path, $options, $type = 'node') {
+    $entity = NULL;
+    if (isset($options['entity_type']) && $options['entity_type'] == $type) {
+      $entity = $options['entity'];
+    }
+    elseif (isset($options['route'])) {
+      // Derive the route pattern and check that it maps to the expected entity
+      // type.
+      $route_path = $options['route']->getPath();
+      $entityManager = \Drupal::entityTypeManager();
+      $entityType = $entityManager->getDefinition($type);
+      $links = $entityType->getLinkTemplates();
 
+      // Check that the route pattern is an entity template.
+      if (in_array($route_path, $links)) {
+        $parts = explode('/', $route_path);
+        $i = 0;
+        foreach ($parts as $part) {
+          if (!empty($part)) {
+            $i++;
+          }
+          if ($part == '{' . $type . '}') {
+            break;
+          }
+        }
+        // Look! We're using arg() in Drupal 8 because we have to.
+        $args = explode('/', $path);
+        if (isset($args[$i])) {
+          $entity = \Drupal::entityTypeManager()->getStorage($type)->load($args[$i]);
+        }
+      }
+    }
+    return $entity;
+  }
+
+}

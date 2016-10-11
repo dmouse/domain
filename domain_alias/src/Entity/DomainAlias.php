@@ -1,15 +1,9 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_alias\Entity\DomainAlias.
- */
-
 namespace Drupal\domain_alias\Entity;
 
 use Drupal\domain_alias\DomainAliasInterface;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\Core\Config\Entity\ConfigEntityStorage;
 use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
@@ -105,6 +99,15 @@ class DomainAlias extends ConfigEntityBase implements DomainAliasInterface {
    */
   public function getRedirect() {
     return $this->redirect;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    parent::postSave($storage, $update);
+    // Invalidate cache tags relevant to domains.
+    \Drupal::service('cache_tags.invalidator')->invalidateTags(['rendered', 'url.site']);
   }
 
 }

@@ -1,13 +1,8 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_source\Tests\DomainSourceEntityReferenceTest
- */
-
 namespace Drupal\domain_source\Tests;
 
-use Drupal\domain\DomainInterface;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\domain\Tests\DomainTestBase;
 
 /**
@@ -22,9 +17,12 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
    *
    * @var array
    */
-  public static $modules = array('domain', 'domain_source', 'field', 'field_ui');
+  public static $modules = array('domain', 'domain_source', 'field', 'field_ui', 'menu_ui', 'block');
 
-  function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp() {
     parent::setUp();
 
     // Run the install hook.
@@ -36,8 +34,13 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
   /**
    * Tests that the module installed its field correctly.
    */
-  function testDomainSourceNodeField() {
-    $this->admin_user = $this->drupalCreateUser(array('administer content types', 'administer node fields', 'administer node display', 'administer domains'));
+  public function testDomainSourceNodeField() {
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer content types',
+      'administer node fields',
+      'administer node display',
+      'administer domains',
+    ));
     $this->drupalLogin($this->admin_user);
 
     // Visit the article field administration page.
@@ -58,8 +61,14 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
   /**
    * Tests the storage of the domain source field.
    */
-  function testDomainSourceFieldStorage() {
-    $this->admin_user = $this->drupalCreateUser(array('administer content types', 'administer node fields', 'administer node display', 'administer domains'));
+  public function testDomainSourceFieldStorage() {
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer content types',
+      'administer node fields',
+      'administer node display',
+      'administer domains',
+      'administer menu',
+    ));
     $this->drupalLogin($this->admin_user);
 
     // Create 5 domains.
@@ -76,7 +85,7 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
     $domains = \Drupal::service('domain.loader')->loadMultiple();
     foreach ($domains as $domain) {
       $string = 'value="' . $domain->id() . '"';
-      $this->assertRaw($string, format_string('Found the %domain option.', array('%domain' => $domain->label())));
+      $this->assertRaw($string, new FormattableMarkup('Found the %domain option.', array('%domain' => $domain->label())));
       if (!isset($one)) {
         $one = $domain->id();
         continue;
@@ -88,12 +97,14 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
     }
     $this->assertRaw('value="_none"', 'Found the _none_ option.');
 
+    $node_storage = \Drupal::entityTypeManager()->getStorage('node');
+
     // Try to post a node, assigned to the second domain.
     $edit['title[0][value]'] = 'Test node';
-    $edit["field_domain_source"] = $two;
+    $edit['field_domain_source'] = $two;
     $this->drupalPostForm('node/add/article', $edit, 'Save');
     $this->assertResponse(200);
-    $node = \Drupal::entityManager()->getStorage('node')->load(1);
+    $node = $node_storage->load(1);
     // Check that the value is set.
     $value = domain_source_get($node);
     $this->assertTrue($value == $two, 'Node saved with proper source record.');
@@ -103,13 +114,12 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
     $expected_url = $two_path . 'node/1';
     $this->assertTrue($expected_url == $url, 'URL rewritten correctly.');
 
-
     // Try to post a node, assigned to no domain.
     $edit['title[0][value]'] = 'Test node';
     $edit["field_domain_source"] = '_none';
     $this->drupalPostForm('node/add/article', $edit, 'Save');
     $this->assertResponse(200);
-    $node = \Drupal::entityManager()->getStorage('node')->load(2);
+    $node = $node_storage->load(2);
     // Check that the value is set.
     $value = domain_source_get($node);
     $this->assertNull($value, 'Node saved with proper source record.');
@@ -118,6 +128,33 @@ class DomainSourceEntityReferenceTest extends DomainTestBase {
     $url = $node->toUrl()->toString();
     $expected_url = base_path() . 'node/2';
     $this->assertTrue($expected_url == $url, 'URL rewritten correctly.');
+
+    // Place the menu block.
+    $this->drupalPlaceBlock('system_menu_block:main');
+
+    // Enable main menu as available menu.
+    $edit = array(
+      'menu_options[main]' => 1,
+      'menu_parent' => 'main:',
+    );
+    $this->drupalPostForm('admin/structure/types/manage/article', $edit, t('Save content type'));
+
+    // Create a third node that is assigned to a menu.
+    $edit = array(
+      'title[0][value]' => 'Node 3',
+      'menu[enabled]' => 1,
+      'menu[title]' => 'Test preview',
+      'field_domain_source' => $two,
+    );
+    $this->drupalPostForm('node/add/article', $edit, 'Save');
+    // Test the URL against expectations, and the rendered menu link.
+    $node = $node_storage->load(3);
+    $url = $node->toUrl()->toString();
+    $expected_url = $two_path . 'node/3';
+    $this->assertTrue($expected_url == $url, 'URL rewritten correctly.');
+    // Load the page with a menu and check that link.
+    $this->drupalGet('node/3');
+    $this->assertRaw('href="' . $url, 'Menu link rewritten correctly.');
   }
 
 }

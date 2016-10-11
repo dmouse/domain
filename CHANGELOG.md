@@ -1,6 +1,11 @@
 Changelog
 =====
 
+31-JUL-2016 8.x-1.0-alpha1
+
+Status
+====
+
 The 8.x-1.x version is a ground up rewrite of a module originally written for
 Drupal 5.
 
@@ -39,9 +44,14 @@ marked with [x] are considered complete.
 - [x] Provide common views support for attached fields
 - [x] Recreate the Domain Content module with bulk operations
 - [x] Add help text to domain overview screen
-- [ ] Ensure unique numeric ids for use with node access
-- [ ] Provide a user interface for domain overrides
 - [x] Views argument handler to show proper title.
+- [x] Ensure unique numeric ids for use with node access
+- [x] Invalidate cache on Domain save
+- [x] Invalidate render cache on Alias save
+- [x] DomainConfigOverrider returns empty $overrides
+- [x] Allow non-ascii domains and aliases
+- [x] The domain_validate hook needs tests
+- [x] Allow partial config loading
 
 # Beta
 - [x] Actions for domain operations
@@ -49,30 +59,30 @@ marked with [x] are considered complete.
 - [x] Replace / inject the storage manager in DomainAliasLoader.
 - [x] Replace / inject the storage manager in DomainLoader.
 - [ ] Write tests for Domain Content.
-- [ ] Views access handler for domain content.
+- [x] Views access handler for domain content.
 - [ ] Restrict Domain Source options using JS
 - [ ] Recreate the Domain Theme module
 - [ ] Advanced drush integration / complete labelled tasks
 - [ ] Check domain responses on configuration forms
-- [ ] Handle site name overrides -- perhaps as a new field?
-- [ ] Restore the `domain_grant_all` permission?
-- [ ] Domain token support
+- [x] Handle site name overrides -- perhaps as a new field?
+- [x] Restore the `domain_grant_all` permission?
+- [x] Domain token support
 - [ ] Test cron handling
-- [ ] Module configurations
-  - [ ] Allow configuration of access-exempt paths for inactive domains
-  - [ ] www prefix handling
-  - [ ] Add domain-specific CSS classes
-  - [ ] Path matching for URL rewrites?
-  - [ ] Allow non-ascii characters in domains
+- [x] Module configurations
+  - [x] Allow configuration of access-exempt paths for inactive domains
+  - [x] www prefix handling
+  - [x] Add domain-specific CSS classes
+  - [x] Path matching for URL rewrites?
+  - [x] Allow non-ascii characters in domains
 - [ ] Recreate the Domain Nav module
 - [ ] Support Tour module
 - [ ] Allow selective access to domain record editing
 - [ ] Allow access to actions based on assigned domain permissions
 - [ ] Implement theme functions or twig templates where proper
 - [ ] Tests for all module hooks
-- [ ] Proper tests for domain record validation
-- [ ] Check test logic in testDomainAliasNegotiator()
-- [ ] Test that sort logic in DomainAliasLoader matches what is documented
+- [x] Proper tests for domain record validation
+- [x] Check test logic in testDomainAliasNegotiator()
+- [x] Test that sort logic in DomainAliasLoader matches what is documented
 - [ ] Error handling in DomainAliasForm
 - [ ] Error checking in DomainAliasController
 - [ ] Deprecated methods in DomainAliasController
@@ -83,8 +93,8 @@ marked with [x] are considered complete.
 - [ ] Cache in the DomainAccessManager
 - [ ] Remove deprecated `entity_get_form_display`
 - [ ] Review drupalUserIsLoggedIn() hack
-- [ ] Review DomainNegotiatorTest for completeness
-- [ ] Review core note in DomainEntityReferenceTest
+- [x] Review DomainNegotiatorTest for completeness
+- [x] Review core note in DomainEntityReferenceTest
 - [ ] Expand DomainActionsTest
 - [ ] DomainViewBuilder review
 - [ ] Dependency Injection in DomainValidator

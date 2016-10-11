@@ -1,14 +1,9 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain_access\Tests\DomainAccessGrantsTest
- */
-
 namespace Drupal\domain_access\Tests;
+
+use Drupal\Core\Database\Database;
 use Drupal\domain\Tests\DomainTestBase;
-use Drupal\domain\DomainInterface;
-use Drupal\Core\Session\AccountInterface;
 
 /**
  * Tests the application of domain access grants.
@@ -18,31 +13,35 @@ use Drupal\Core\Session\AccountInterface;
 class DomainAccessGrantsTest extends DomainTestBase {
 
   /**
+   * The Entity access handler.
+   *
+   * @var \Drupal\Core\Entity\EntityAccessControlHandlerInterface $accessHandler
+   */
+  protected $accessHandler;
+
+  /**
    * Modules to enable.
    *
    * @var array
    */
   public static $modules = array('domain', 'domain_access', 'field', 'node');
 
-  function setUp() {
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp() {
     parent::setUp();
-    // Run the install hook.
-    // @TODO: figure out why this is necessary.
-    module_load_install('domain_access');
-    domain_access_install();
-    // Set the access handler.
-    $this->accessHandler = \Drupal::entityManager()->getAccessControlHandler('node');
 
-    // Clear permissions for authenticated users.
-    $this->config('user.role.' . DRUPAL_AUTHENTICATED_RID)->set('permissions', array())->save();
+    // Ensure node_access table is clear.
+    Database::getConnection()->delete('node_access')->execute();
   }
 
   /**
    * Creates a node and tests the creation of node access rules.
    */
-  function testDomainAccessGrants() {
-    // The {node_access} table is not emptied properly by the setup.
-    db_delete('node_access')->execute();
+  public function testDomainAccessGrants() {
+    $node_storage = \Drupal::entityTypeManager()->getStorage('node');
+
     // Create 5 domains.
     $this->domainCreateTestDomains(5);
     // Assign a node to a random domain.
@@ -54,7 +53,7 @@ class DomainAccessGrantsTest extends DomainTestBase {
       'type' => 'article',
       DOMAIN_ACCESS_FIELD => array($domain->id()),
     ));
-    $this->assertTrue(\Drupal::entityManager()->getStorage('node')->load($node1->id()), 'Article node created.');
+    $this->assertTrue($node_storage->load($node1->id()), 'Article node created.');
 
     // Test the response of the node on each site. Should allow access only to
     // the selected site.
@@ -76,7 +75,7 @@ class DomainAccessGrantsTest extends DomainTestBase {
       DOMAIN_ACCESS_FIELD => array($domain->id()),
       DOMAIN_ACCESS_ALL_FIELD => 1,
     ));
-    $this->assertTrue(\Drupal::entityManager()->getStorage('node')->load($node2->id()), 'Article node created.');
+    $this->assertTrue($node_storage->load($node2->id()), 'Article node created.');
     // Test the response of the node on each site. Should allow access on all.
     foreach ($domains as $domain) {
       $path = $domain->getPath() . 'node/' . $node2->id();

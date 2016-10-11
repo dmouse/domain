@@ -1,13 +1,8 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\domain\Tests\DomainConfigHomepageTest.
- */
-
 namespace Drupal\domain_config\Tests;
 
-use Drupal\domain_config\Tests\DomainConfigTestBase;
+use Drupal\user\RoleInterface;
 
 /**
  * Tests the domain config system handling of home page routes.
@@ -23,12 +18,13 @@ class DomainConfigHomepageTest extends DomainConfigTestBase {
    *
    * @TODO: Requires https://www.drupal.org/node/2662196
    */
-  function testDomainConfigHomepage() {
+  public function testDomainConfigHomepage() {
     // Let anon users see content.
-    user_role_grant_permissions(DRUPAL_ANONYMOUS_RID, array('access content'));
+    user_role_grant_permissions(RoleInterface::ANONYMOUS_ID, array('access content'));
 
     // Configure 'node' as front page.
-    $this->config('system.site')->set('page.front', '/node')->save();
+    $site_config = $this->config('system.site');
+    $site_config->set('page.front', '/node')->save();
 
     // No domains should exist.
     $this->domainTableIsEmpty();
@@ -36,12 +32,12 @@ class DomainConfigHomepageTest extends DomainConfigTestBase {
     $this->domainCreateTestDomains(5);
     // Get the domain list.
     $domains = \Drupal::service('domain.loader')->loadMultiple();
-    $node1 = $this->drupalCreateNode(array(
+    $this->drupalCreateNode(array(
       'type' => 'article',
       'title' => 'Node 1',
       'promoted' => TRUE,
     ));
-    $node2 = $this->drupalCreateNode(array(
+    $this->drupalCreateNode(array(
       'type' => 'article',
       'title' => 'Node 2',
       'promoted' => TRUE,
@@ -49,9 +45,12 @@ class DomainConfigHomepageTest extends DomainConfigTestBase {
     $homepages = $this->getHomepages();
     foreach ($domains as $domain) {
       $home = $this->drupalGet($domain->getPath());
+
+      // Check if this setting is picked up.
       $expected = $domain->getPath() . $homepages[$domain->id()];
       $expected_home = $this->drupalGet($expected);
-      $this->assertTrue($home == $expected_home, 'Proper home page loaded.');
+
+      $this->assertTrue($home == $expected_home, 'Proper home page loaded (' . $domain->id() . ').');
     }
   }
 
